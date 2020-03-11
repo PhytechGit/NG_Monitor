@@ -1,0 +1,4 @@
+73,SD,Stem sensor,8500,8900
+74,DER,Dendrometer,0,12000
+83,FI3,Fruit sensor (FI3),3400,4400
+68,HUB,HUB,0,0

@@ -1,0 +1,10 @@
+C:\Phytech-Yifat\Sources\BitBucket\NG_Monitor\NG_Monitor\bin\Debug\NG_Monitor.exe.config
+C:\Phytech-Yifat\Sources\BitBucket\NG_Monitor\NG_Monitor\obj\Debug\NG_Monitor.Form1.resources
+C:\Phytech-Yifat\Sources\BitBucket\NG_Monitor\NG_Monitor\obj\Debug\NG_Monitor.Properties.Resources.resources
+C:\Phytech-Yifat\Sources\BitBucket\NG_Monitor\NG_Monitor\obj\Debug\NG_Monitor.csproj.GenerateResource.Cache
+C:\Phytech-Yifat\Sources\BitBucket\NG_Monitor\NG_Monitor\bin\Debug\NG_Monitor.exe
+C:\Phytech-Yifat\Sources\BitBucket\NG_Monitor\NG_Monitor\bin\Debug\NG_Monitor.pdb
+C:\Phytech-Yifat\Sources\BitBucket\NG_Monitor\NG_Monitor\bin\Debug\QRCoder.dll
+C:\Phytech-Yifat\Sources\BitBucket\NG_Monitor\NG_Monitor\obj\Debug\NG_Monitor.exe
+C:\Phytech-Yifat\Sources\BitBucket\NG_Monitor\NG_Monitor\obj\Debug\NG_Monitor.pdb
+C:\Phytech-Yifat\Sources\BitBucket\NG_Monitor\NG_Monitor\obj\Debug\NG_Monitor.csprojResolveAssemblyReference.cache
