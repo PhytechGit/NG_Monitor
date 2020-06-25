@@ -23,7 +23,24 @@ using System.Runtime.InteropServices;
 namespace NG_Monitor
 {
     public partial class Form1 : Form
-    {       
+    {
+        const int TYPE_NONE = 0;
+        const int TYPE_HUB = 68;
+        const int TYPE_SD = 73;
+        const int TYPE_DER = 74;
+        const int TYPE_FI3 = 83;
+
+        const int CALICRATION_FI3 = 3950;
+
+        enum Stage
+        {
+            STAGE0_NONE,
+            STAGE1_TYPE,
+            STAGE2_ID,
+            STAGE4_CLBR,
+        }
+        static Stage m_stage;
+
         byte[] m_buffer = new byte[100];
         int length;
         static int nEventCntr;
@@ -44,6 +61,12 @@ namespace NG_Monitor
         private static System.Timers.Timer gpsTimer;
         private static System.Timers.Timer ackTimer;
         bool m_bDefaultReused;
+        private Color backgroundColor;
+        int DbgMode = 0;
+        //static int m_bInProcess;
+        enum Versions { None, Old_Ver, New_Ver };
+        string m_sSWVer;
+        string m_sHubVer;
 
         struct SensorType
         {
@@ -52,98 +75,38 @@ namespace NG_Monitor
             public int m_iMinValue, m_iMaxValue;
         }
 
-        unsafe public struct _ProtocolMntrHeader
-        {
-            public Int16    m_Header;
-            public Int16    m_size;
-        }
-
         //sensor<-->monitor protocol
         //0xA1 / 0xA6
-        unsafe public struct _PayloadStage1
+        unsafe public struct Stage1//_PayloadStage1
         {
-            public Int32 m_version;
+            public byte m_Header;
+            public byte m_size;
             public Int16 m_battery;
-            public char m_rssi;
-        }
-
-        //0xA2
-        unsafe public struct _PayloadAckStage1
-        {
-            public Int16    m_batteryEcho;
-            public byte     m_type;
-        }
-
-        unsafe public struct _PayloadStage2
-        {
-            public Int16    m_data;
-            public UInt16   m_typeEcho;
-        }
-
-        unsafe public struct _PayloadStage3
-        {
-            public UInt32 m_EchoId;
-            public UInt16 m_type;
-        }
-
-        unsafe public struct Stage1
-        {
-            public _ProtocolMntrHeader  header;            
-            public _PayloadStage1       payload;
+            public Int32    m_version;
+            public UInt64   m_MacAddr;
+            public byte     m_rssi;
         }
 
         unsafe public struct Stage2
         {
-            public _ProtocolMntrHeader  header;
-            public _PayloadStage2       payload;
+            public byte m_Header;
+            public byte m_size;
+            public Int16 m_data;
+            public byte m_typeEcho;
         }
 
         unsafe public struct Stage3
         {
-            public _ProtocolMntrHeader header;
-            public _PayloadStage3 payload;
+            public byte m_Header;
+            public byte m_size;
+            public byte m_id1;
+            public byte m_id2;
+            public byte m_id3;
+            public byte m_id4;
+            public byte m_type;
         }
 
-        unsafe public struct AckPayload1
-        {
-            public _ProtocolMntrHeader header;
-            public _PayloadAckStage1 payload;
-        }
-        //int m_ver;
-        //object m_sSenType;
-        //Stage1 msg;
-        private Color backgroundColor;
-        int DbgMode = 0;
-        static int m_bInProcess;
-        const int TYPE_NONE = 0;
-        //const int TYPE_PIVOT = 67;
-        const int TYPE_HUB = 68;
-        //const int TYPE_WPS = 69;
-        //const int TYPE_RAIN = 70;
-        //const int TYPE_TENS = 71;
-        //const int TYPE_SMS = 72;
-        const int TYPE_SD = 73;
-        const int TYPE_DER = 74;
-        //const int TYPE_FI = 75;
-        //const int TYPE_AT = 76;
-        //const int TYPE_AH = 77;
-        //const int TYPE_AQUA = 78;
-        //const int TYPE_FI_2 = 82;
-        const int TYPE_FI3 = 83;
-        //const int TYPE_AT = 84;
-        //const int TYPE_IRS = 85;
-        //const int TYPE_WTR_PLS_CNT = 86;
-        //const int TYPE_NEW_PIVOT = 88;
 
-        const int CALICRATION_FI3 = 3950;
-        const int TYPE_AVI = 99;
-        enum Versions { None, Old_Ver, New_Ver};
-//        Versions m_ver;
-        string m_sSWVer;
-        string m_sHubVer;
-        //int m_Rssi;
-
-        byte[] beep = new byte[5] { 0x47, 0x45, 0x54, 0x49, 0x44 }; // "GETID"
         List<SensorType> TypesArray;
 
         public Form1()
@@ -169,7 +132,7 @@ namespace NG_Monitor
             }
             
             nEventCntr = 0;
-            m_bInProcess = 0;
+            m_stage = Stage.STAGE0_NONE;
             m_bDefaultReused = false;
             //string s;
 //            m_ver = Versions.None;
@@ -195,6 +158,7 @@ namespace NG_Monitor
             else
                 m_bDefaultReused = false;
             LoadVersionNum();
+        
             /*
             //get SW latest version from staging server
 
@@ -247,28 +211,28 @@ namespace NG_Monitor
             }
         }
 
-        private void SetTimer()
-        {
-            // Create a timer with a two second interval.
-            gpsTimer = new System.Timers.Timer(180000);
-            // Hook up the Elapsed event for the timer. 
-            gpsTimer.Elapsed += new System.Timers.ElapsedEventHandler(OnTimedEvent);
-            //ElapsedEventHandler(OnTimedEvent);// timerEndProc_Tick;//OnTimedEvent;
-            gpsTimer.AutoReset = false;
-            gpsTimer.Enabled = true;
-        }
+        //private void SetTimer()
+        //{
+        //    // Create a timer with a two second interval.
+        //    gpsTimer = new System.Timers.Timer(180000);
+        //    // Hook up the Elapsed event for the timer. 
+        //    gpsTimer.Elapsed += new System.Timers.ElapsedEventHandler(OnTimedEvent);
+        //    //ElapsedEventHandler(OnTimedEvent);// timerEndProc_Tick;//OnTimedEvent;
+        //    gpsTimer.AutoReset = false;
+        //    gpsTimer.Enabled = true;
+        //}
 
-        private void OnTimedEvent(Object source, System.Timers.ElapsedEventArgs e)
-        {
-            SetText(statusText, "FAIL");
-            SetColor(statusText, Color.Red);
-            AddText(richTextBox1, "Timeout to get GPS. Something is wrong\r\n");
-            gpsTimer.Enabled = false;
-            m_bInProcess = 0;
-            gpsTimer.Dispose();
-            //AddText(richTextBox1, "settimer\r\n");
-        }
-        
+        //private void OnTimedEvent(Object source, System.Timers.ElapsedEventArgs e)
+        //{
+        //    SetText(statusText, "FAIL");
+        //    SetColor(statusText, Color.Red);
+        //    AddText(richTextBox1, "Timeout to get GPS. Something is wrong ");
+        //    gpsTimer.Enabled = false;
+        //    m_stage = 0;
+        //    gpsTimer.Dispose();
+        //    //AddText(richTextBox1, "settimer ");
+        //}
+
         private void SetTimer4Ack()
         {
             // Create a timer with a two second interval.
@@ -284,11 +248,11 @@ namespace NG_Monitor
         {
             SetText(statusText, "FAIL");
             SetColor(statusText, Color.Red);
-            AddText(richTextBox1, "Timeout to get OK.\r\n");
+            AddText(richTextBox1, "Timeout to get OK.");
             ackTimer.Enabled = false;
-            m_bInProcess = 0;
+            m_stage = Stage.STAGE0_NONE;
             ackTimer.Dispose();
-            //AddText(richTextBox1, "settimer\r\n");
+            //AddText(richTextBox1, "settimer ");
         }
         private void OpenPort_Click(object sender, EventArgs e)
         {
@@ -415,6 +379,7 @@ namespace NG_Monitor
                     return *(Stage1*)map;
                 }
             }
+            
         }
 
         static Stage2 GetMsg2(byte[] data)
@@ -439,287 +404,200 @@ namespace NG_Monitor
             }
         }
 
-        byte[] getBytes(AckPayload1 str)
-        {
-            int size = Marshal.SizeOf(str);
-            byte[] arr = new byte[size];
-
-            IntPtr ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(str, ptr, true);
-            Marshal.Copy(ptr, arr, 0, size);
-            Marshal.FreeHGlobal(ptr);
-            return arr;
-        }
-        //public byte[] ToBytes(MyMsg msg)
-        //{
-        //    byte[] buffer = new byte[20];
-        //    unsafe
-        //    {
-        //        //fixed (MyMsg* m = msg)
-        //        fixed (byte* pBuff = buffer)
-        //        {
-        //            return (byte[])&msg;                                       
-        //        }
-        //    }
-        //    return buffer;
-        //}
-
 
         private bool UnpackBuffer(int l)
         {
             //int n = 0;
             //int i = 0;//, size;
             int value, p;
-
-            if (m_bInProcess == 0)
+            if (ackTimer != null)
             {
-
+                ackTimer.Enabled = false;
+                ackTimer.Dispose();
+            }
+            if (m_stage == Stage.STAGE0_NONE)
+            {
                 // new connection recognized:
-                //if (m_buffer[0] != 0xA1)
-                //    return false;
                 Stage1 msg1 =  GetMsg1(m_buffer);
-                if ((msg1.header.m_Header != 0xA1) && (msg1.header.m_Header != 0xA6))
+                if ((msg1.m_Header != 0xA1) && (msg1.m_Header != 0xA6) && (msg1.m_Header != 0xBA))
                     return false;
-                AddText(richTextBox1, string.Format("batery: {0}, rssi: {1} Version: ", msg1.payload.m_battery, (int)msg1.payload.m_rssi));
+//                AddText(c, string.Format("sizeof Stage1 is: {0}", sizeof(msg1)));
+                AddText(richTextBox1, string.Format("batery: {0}, rssi: {1} Version: ", msg1.m_battery, (int)msg1.m_rssi));
+                AddText(richTextBox1, string.Format("Mac Address: {0}", msg1.m_MacAddr));
                 ResetAllTexts();
-                m_bInProcess = 1;
-                AddText(richTextBox1, "New Generation Unit Ask for ID\r\n");
-                //AddText(richTextBox1, Buff2Log(true, length));
-                // size = m_buffer[5];
-                //index = 6;
-                //value = BitConverter.ToInt16(m_buffer, 8);
-                value = msg1.payload.m_battery;
+                if (msg1.m_Header == 0xBA)
+                {
+                    AddText(richTextBox1, "Check 4 updates ");
+                    return false;
+                }
+                else
+                    AddText(richTextBox1, "New Generation Unit Ask for ID ");
+                value = msg1.m_battery;
                 SetText(textBat, value.ToString());
+                SetText(labelMac, string.Format("Mac Address: {0}", msg1.m_MacAddr.ToString()));
+                
                 //index += 2;
                 if ((value < 3000))// && (DbgMode != 1))
                 {
-                    AddText(richTextBox1, string.Format("Battery too low. Quit process. ({0})\r\n", value));
-                    m_bInProcess = 0;
+                    AddText(richTextBox1, string.Format("Battery too low. Quit process. ({0}) ", value));
                     //return false;
                 }
-                m_RomVer = BitConverter.GetBytes(msg1.payload.m_version);
+                m_RomVer = BitConverter.GetBytes(msg1.m_version);
                 ParseVersion(1);
                 if (m_nType == TYPE_HUB)
                 {
                     if (m_sHubVer != textVersion.Text)
                     {
-                        AddText(richTextBox1, "Software version doesn't match required one. Quit process.\r\n");
-                        m_bInProcess = 0;
+                        AddText(richTextBox1, "Software version doesn't match required one. Quit process. ");
                         //return false;
                     }
                 }
                 else
                     if ((textVersion.Text != m_sSWVer) && (DbgMode != 3))
                     {
-                        AddText(richTextBox1, "Software version doesn't match required one. Quit process.\r\n");
-                        m_bInProcess = 0;
+                        AddText(richTextBox1, "Software version doesn't match required one. Quit process. ");
                         //return false;
                     }
-                    //SetText(textRssi, m_buffer[index].ToString());
-                    //index = 8;
-                    //m_Rssi = m_buffer[index];
-                    p = ((int)msg1.payload.m_rssi - 260) / 2;
+                    p = ((int)msg1.m_rssi - 260) / 2;
                 //(m_buffer[10] - 260) / 2;
                 SetText(textPin, p.ToString());
                 if (p < m_nMaxpIn)
                 {
-                    AddText(richTextBox1, "Pin too low. Quit process.\r\n");
-                    m_bInProcess = 0;
+                    AddText(richTextBox1, "Pin too low. Quit process. ");
                     //return false;
                 }
-                
+
                 if (m_nType == TYPE_HUB)
                 {
-                    m_bInProcess = 2;
-                    AddText(richTextBox1, "Generate ID from server\r\n");
-                    if (GenerateID() == false)
-                    {
-                        AddText(richTextBox1, "Unable to generate ID. Quit process\r\n");
-                        m_bInProcess = 0;
-                        return false;
-                    }
+                    m_stage = Stage.STAGE2_ID;
+                    return true;                   
                 }
                 else
                 {
-                    AddText(richTextBox1, "sending to sensor the Type\r\n");
-                    m_bInProcess = 1;   // todo - remove!!!!!
+                    m_stage = Stage.STAGE1_TYPE;
+                    AddText(richTextBox1, "sending to sensor the Type ");
                 }
                 //serialPort1.DataReceived -= new SerialDataReceivedEventHandler(serialPort1_DataReceived_1);
                 //nEventCntr--;
             }
             else
-                if (m_bInProcess == 1)
+                if (m_stage == Stage.STAGE1_TYPE)
             {
-                if (ackTimer != null)
-                {
-                    ackTimer.Enabled = false;
-                    ackTimer.Dispose();
-                }
                 Stage2 s2 = GetMsg2(m_buffer);
-                // if start of packet is 'DATA'
-                //if ((m_buffer[0] != 0x44) || (m_buffer[1] != 0x41) || (m_buffer[2] != 0x54) || (m_buffer[3] != 0x41))
-                //    return false;
-                if (s2.header.m_Header != 0xA3)
+                if (s2.m_Header != 0xA3)
                 {
-                    AddText(richTextBox1, "Header doesnt fit"+s2.header.m_Header.ToString());
+                    AddText(richTextBox1, "Header doesnt fit"+s2.m_Header.ToString());
                     //m_bInProcess = 0;
                     //return false;
                 }
-                if (s2.payload.m_typeEcho != m_nType)
+                if (s2.m_typeEcho != m_nType)
                 {
                     AddText(richTextBox1, "type doesnt fit");
                     //m_bInProcess = 0;
                     //return false;
                 }
-                value = s2.payload.m_data;//BitConverter.ToInt16(m_buffer, 4);
+                value = s2.m_data;//BitConverter.ToInt16(m_buffer, 4);
                 SetText(textValue, value.ToString());
-                AddText(richTextBox1, "Got measure from sensor\r\n");
+                AddText(richTextBox1, "Got measure from sensor ");
                 //AddText(richTextBox1, Buff2Log(true, length));
                 if ((value < TypesArray[m_selIndex].m_iMinValue) || (value > TypesArray[m_selIndex].m_iMaxValue))
                 {
-                    AddText(richTextBox1, "Measurement is out of expected range. Quit process. \r\n");
-                    m_bInProcess = 0;
+                    AddText(richTextBox1, "Measurement is out of expected range. Quit process.  ");
+ //                   m_stage = Stage.STAGE0_NONE;
                     return false;
                 }
-                //only for Marko to test:
-                //{
-                //    AddText(richTextBox1, "Marko Quit process. \r\n");
-                //    m_bInProcess = 0;
-                //    return false;
-                //}
                 // for FI#=3 - calc calibration and send it before ID
 
                 //remove next 7 lines just for test
                 if (m_nType == TYPE_FI3)
                 {
                     m_nCalibVal = CALICRATION_FI3 - value;
-                    AddText(richTextBox1, "Calibration Value is:" + m_nCalibVal.ToString() + "\r\n");
-                    m_bInProcess = 4;
+                    AddText(richTextBox1, "Calibration Value is:" + m_nCalibVal.ToString() + " ");
+                    m_stage = Stage.STAGE4_CLBR;
                 }
                 else
                 {
-                    m_bInProcess = 2;
-                    if (checkBoxNotGenerae.Checked == false)
-                    {
-                        AddText(richTextBox1, "Generate ID from server\r\n");
-                        if (GenerateID() == false)
-                        {
-                            AddText(richTextBox1, "Unable to generate ID. Quit process\r\n");
-                            m_bInProcess = 0;
-                            return false;
-                        }
-                    }
-                    AddText(richTextBox1, "sending to sensor the new ID and Type\r\n");
+                    m_stage = Stage.STAGE2_ID;
+                    AddText(richTextBox1, "sending to sensor the new ID and Type ");
                 }                
             }
             else
-                if (m_bInProcess == 4)
+            if (m_stage == Stage.STAGE2_ID)
+            {
+                CheckACK();
+            }
+            else
+                if (m_stage == Stage.STAGE4_CLBR)
                 {
-                /*
- * byte1: 'C' (67)
- * byte2: 'L' (76)
- * byte 3+4: echo calibration 
- * byte 5+6: value after calibration (should be CALICRATION_FI3)
- * 
- * */
-
-                AddText(richTextBox1, "Got calib from sensor\r\n");
+                AddText(richTextBox1, "Got calib from sensor ");
                     AddText(richTextBox1, Buff2Log(true, length));
                     if (GetCheckSum(6) != m_buffer[6])
                         return false;
-                    if (ackTimer != null)
-                    {
-                        ackTimer.Enabled = false;
-                        ackTimer.Dispose();
-                    }
                     //removenext 10 linesonly for fi check
                     value = BitConverter.ToInt16(m_buffer, 2);
                     if (value != m_nCalibVal)
                     {
-                        AddText(richTextBox1, "Calibration value is wrong\r\n");
-                        m_bInProcess = 0;
+                        AddText(richTextBox1, "Calibration value is wrong ");
+//                        m_stage = Stage.STAGE0_NONE;
                         return false;
                     }
                     value = BitConverter.ToInt16(m_buffer, 4);
                     if (value != CALICRATION_FI3)
                     {
-                        AddText(richTextBox1, "Final value is wrong\r\n");
-                        m_bInProcess = 0;
+                        AddText(richTextBox1, "Final value is wrong ");
+ //                       m_stage = Stage.STAGE0_NONE;
                         return false;
                     }
-                    AddText(richTextBox1, "value after Calibration is:" + value + "\r\n");
-                    m_bInProcess = 2;
-                    if (checkBoxNotGenerae.Checked == false)
-                    {
-                        AddText(richTextBox1, "Generate ID from server\r\n");
-                        if (GenerateID() == false)
-                        {
-                            AddText(richTextBox1, "Unable to generate ID. Quit process\r\n");
-                            m_bInProcess = 0;
-                            return false;
-                        }
-                    }
-                    AddText(richTextBox1, "sending to sensor the new ID and Type\r\n");
+                    AddText(richTextBox1, "value after Calibration is:" + value + " ");
+                    m_stage = Stage.STAGE2_ID;
+                    AddText(richTextBox1, "sending to sensor the new ID and Type ");
                 }
 
-            SendCommand();
-            SetTimer4Ack();
+//            SendCommand();
+//            SetTimer4Ack();
                     
             return true;              
         }
 
-        void CheckACK()
+        bool CheckACK()
         {
-            UInt32 value;//, p;
-            AddText(richTextBox1, "check ack\r\n");
+            AddText(richTextBox1, "check ack ");
             AddText(richTextBox1, Buff2Log(true, 7));
 
             Stage3 st = GetMsg3(m_buffer);
-
+            byte[] m_EchoId = new byte[] { st.m_id1, st.m_id2, st.m_id3, st.m_id4 };
+            UInt32 id =  BitConverter.ToUInt32(m_EchoId, 0);
+//            AddText(richTextBox1, string.Format("header: {0} id: {1}", st.m_Header, id));
             if (m_nType != TYPE_HUB)
             {
-                if (st.header.m_Header != 0xA5)
-                    return;
-                //            AddText(richTextBox1, "Check ACK\r\n");
-                //value = st.payload.m_EchoId; //BitConverter.ToInt32(m_buffer, 0);
+                if (st.m_Header != 0xA5)
+                {
+                    AddText(richTextBox1, "wrong header");
+                    return false;
+                }
             }
             else            
             {
-                 if (st.header.m_Header != 0xA8)
-                    return;
-                //            AddText(richTextBox1, "Check ACK\r\n");
-                //value = st.payload.m_EchoId; //BitConverter.ToInt32(m_buffer, 0);
+                 if (st.m_Header != 0xA8)
+                    return false;
             }
-            value = st.payload.m_EchoId;
             // if got the sameID as sent
-            if (value == Convert.ToInt32(textID.Text))
-            {              
-                //if ((m_buffer[4] == 'A') && (m_buffer[5] == 'C') && (m_buffer[6] == 'K'))                    
+            if (id == Convert.ToInt32(textID.Text))
+            {
                 {
-                    if (ackTimer != null)
-                    {
-                        ackTimer.Enabled = false;
-                        ackTimer.Dispose();
-                    }
                     //AddText(richTextBox1, Buff2Log(true, 7));
-                    AddText(richTextBox1, "Successfully set up identity\r\n");
-                    //AddText(richTextBox1, "Set ID to Sensor done succesfuly\r\n");
-                    //if ((m_nType == TYPE_PIVOT) || (m_nType == TYPE_NEW_PIVOT))
-                    //{
-                    //    AddText(richTextBox1, "Sensor is looking for GPS...\r\n");
-                    //    SetTimer();
-                    //    m_bInProcess = 3;
-                    //    return;
-                    //}                   
-                    
-                    PrintSticker();                 
-                    SendSensorInfo();                    
+                    AddText(richTextBox1, "Successfully set up identity ");
+                    PrintSticker();
+                    SendSensorInfo();
                     SetText(statusText, "PASS");
                     SetColor(statusText, Color.Green);
-                    m_bInProcess = 0;
+                    m_stage = Stage.STAGE0_NONE;
                     checkReused.Checked = m_bDefaultReused;
-                }                
+                    return true;
+                }
             }
+            else
+                return false;
         }
 
         
@@ -732,80 +610,73 @@ namespace NG_Monitor
         
         private void SendCommand()
         {
-            
+            byte index = 0;
             if (serialPort1.IsOpen == false)
                 return;
             if (m_nType == 0)
             {
                 //MessageBox.Show("You must select type of sensor!");
-                AddText(richTextBox1, "You must select type of sensor!\r\n");
+                AddText(richTextBox1, "You must select type of sensor! ");
                 return;
             }
             
             int bufSize = 0;
             //m_buffer[0] = 0xA2;
-            if (m_bInProcess == 1)
+            if (m_stage == Stage.STAGE1_TYPE)
             {
-                //AckPayload1 ack1;
-                //int size;
-                //unsafe
-                //{
-                //    size = sizeof(AckPayload1);
-                //}
-                //if (size > 100)
-                //    return;
-                //ack1.header.m_Header = 0xA2;
-                //ack1.header.m_size = (byte)size;
-                //ack1.payload.m_batteryEcho = Convert.ToInt16(textBat.Text);
-                //ack1.payload.m_type = m_nType;
-                ////IntPtr ptr = Marshal.AllocHGlobal(size);
-                ////Marshal.Copy(ptr, m_buffer, 0, size);
-                //m_buffer = getBytes(ack1);
-                //Buffer.BlockCopy(getBytes(ack1), 0, m_buffer, 0, size);
+                m_buffer[index++] = 0xA2;
+                m_buffer[index++] = 6;
+                Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt16(textBat.Text)), 0, m_buffer, index, 2);
+                index += 2;
+                m_buffer[index++] = m_nType;
+                m_buffer[index++] = 0;//for cs
+                bufSize = index;
 
-                //m_buffer[0] = 0xA2;
-                Buffer.BlockCopy(BitConverter.GetBytes(0xA2), 0, m_buffer, 0, 2);
-                //m_buffer[1] = 6;
-                Buffer.BlockCopy(BitConverter.GetBytes(8), 0, m_buffer, 2, 2);
-                //m_buffer[2] = 0x50;
-                Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt16(textBat.Text)), 0, m_buffer, 4, 2);
-                m_buffer[6] = m_nType;
-                m_buffer[7] = GetCheckSum(7);
-                bufSize = 8;
-                
             }
             else
-                 if (m_bInProcess == 2)
-                    if (m_nType == TYPE_HUB)
-                    {
-                    //m_buffer[0] = 0xA4;
-                    Buffer.BlockCopy(BitConverter.GetBytes(0xA7), 0, m_buffer, 0, 2);
-                    //m_buffer[1] = 6;
-                    Buffer.BlockCopy(BitConverter.GetBytes(11), 0, m_buffer, 2, 2);
-                    Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt32(textID.Text)), 0, m_buffer, 4, 4);
-                    Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt16(textBat.Text)), 0, m_buffer, 8, 2);
-                    m_buffer[10] = GetCheckSum(10);
-                    bufSize = 11;
+                 if (m_stage == Stage.STAGE2_ID)
+            {
+                AddText(richTextBox1, "Generate ID from server ");
+                if (GenerateID() == false)
+                {
+                    AddText(richTextBox1, "Unable to generate ID. Quit process ");
+                    m_stage = Stage.STAGE0_NONE;
+                    return ;
+                }
+                if (m_nType == TYPE_HUB)
+                {
+                    m_buffer[index++] = 0xA7;
+                    m_buffer[index++] = 9;
+                    Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt16(textBat.Text)), 0, m_buffer, index, 2);
+                    index += 2; ;
+                    Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt32(textID.Text)), 0, m_buffer, index, 4);
+                    index += 4;
+                    //checksum- add in gate
+                    m_buffer[index++] = 0;
+                    bufSize = index;
+//                    m_buffer[10] = GetCheckSum(10);
+                    bufSize = 9;
                 }
                 else
-                        {
-                            //m_buffer[0] = 0xA4;
-                            Buffer.BlockCopy(BitConverter.GetBytes(0xA4), 0, m_buffer, 0, 2);
-                            //m_buffer[1] = 6;
-                            Buffer.BlockCopy(BitConverter.GetBytes(10), 0, m_buffer, 2, 2);
-                            Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt32(textID.Text)), 0, m_buffer, 4, 4);
-                            m_buffer[8] = m_nType;
-                            m_buffer[9] = GetCheckSum(9);
-                            bufSize = 10;
-                        }
-            else
-                 if (m_bInProcess == 4)// calibrate the FI
                 {
-                    Buffer.BlockCopy(BitConverter.GetBytes(m_nCalibVal), 0, m_buffer, 1, 2);
-                    Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt16(textBat.Text)), 0, m_buffer, 3, 2);
-                    m_buffer[5] = m_nType;
-                    m_buffer[6] = GetCheckSum(6);
+                    m_buffer[index++] = 0xA4;
+                    m_buffer[index++] = 8;
+                    Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt32(textID.Text)), 0, m_buffer, index, 4);
+                    index += 4;
+                    m_buffer[index++] = m_nType;
+                    //checksum- add in gate
+                    m_buffer[index++] = 0;
+                    bufSize = index;
                 }
+            }
+            else
+                 if (m_stage == Stage.STAGE4_CLBR)// calibrate the FI
+            {
+                Buffer.BlockCopy(BitConverter.GetBytes(m_nCalibVal), 0, m_buffer, 1, 2);
+                Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt16(textBat.Text)), 0, m_buffer, 3, 2);
+                m_buffer[5] = m_nType;
+                m_buffer[6] = GetCheckSum(6);
+            }
             try
             {
                 //Thread.Sleep(1000);
@@ -818,14 +689,13 @@ namespace NG_Monitor
                serialPort1.DiscardOutBuffer();
                //clear buffer
                ClearReadBuf();
-           }
+                SetTimer4Ack();
+            }
            catch (Exception x)
            {
                MessageBox.Show("Exception data sending");
                MessageBox.Show(x.Message);
            }
-//           AddText(richTextBox1, Buff2Log(true, length));
-           //bool b = UnpackBuffer();
         }
 
         private byte GetCheckSum(int len)
@@ -894,7 +764,7 @@ namespace NG_Monitor
                     s += Convert.ToString(m_buffer[i]);
                     s += ',';                
                 }
-            s += "\r\n";
+            s += " ";
             return s;
         }
 
@@ -913,6 +783,7 @@ namespace NG_Monitor
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            labelMac.Text = "";
             string[] ports = SerialPort.GetPortNames();
             if (ports.GetLength(0) > 0)
             {
@@ -984,31 +855,43 @@ namespace NG_Monitor
                 //    return;
                 //if (length < 7)
                 //    return;
+                if (length > 100)
+                    length = 100;
                 serialPort1.Read(m_buffer, 0, length);// length);
                 serialPort1.DiscardInBuffer();
                 if (length == 0)
                     return;
                 string s = "DataReceived" + Buff2Log(false, length);
-                //AddText(richTextBox1, "new data from sensor:\r\n");
+                //AddText(richTextBox1, "new data from sensor: ");
                 AddText(richTextBox1, s);
-                //if (Check4GPS() == false)
+                if (UnpackBuffer(length) == true)
                 {
-                    if (m_bInProcess == 0)
-                        UnpackBuffer(length);
-                    else
-                        if (m_bInProcess == 1)
-                            UnpackBuffer(length);
-                        else
-                            if (m_bInProcess == 2)
-                                CheckACK();
-                            else
-                                //if (m_bInProcess == 3)
-                                //    Check4GPS();
-                                //else
-                                    if (m_bInProcess == 4)
-                                        UnpackBuffer(length);
-
+                    if (m_stage != Stage.STAGE0_NONE)
+                    {
+                        Thread th4 = new Thread(new ThreadStart(SendCommand));
+                        th4.Start();
+                    }
                 }
+                else
+                    m_stage = Stage.STAGE0_NONE;
+                ////if (Check4GPS() == false)
+                //{
+                //    if (m_bInProcess == 0)
+                //        UnpackBuffer(length);
+                //    else
+                //        if (m_bInProcess == 1)
+                //            UnpackBuffer(length);
+                //        else
+                //            if (m_bInProcess == 2)
+                //                CheckACK();
+                //            else
+                //                //if (m_bInProcess == 3)
+                //                //    Check4GPS();
+                //                //else
+                //                    if (m_bInProcess == 4)
+                //                        UnpackBuffer(length);
+
+                //}
                 ClearReadBuf();
             }
             catch (Exception x)
@@ -1064,7 +947,7 @@ namespace NG_Monitor
                 {
                     SetText(textID, IDs[3]);
                     m_nAllocID = n2;
-                    string smsg = string.Format("generate ID {0}\r\n", n1);
+                    string smsg = string.Format("generate ID {0} ", n1);
                     AddText(richTextBox1, smsg);
                 }
                 else
@@ -1104,7 +987,7 @@ namespace NG_Monitor
             strLine += String.Format("&sensor_type={0}&measuring_value={1}&battery_value={2}&rssi_value={3}&hardware_type=Sensor", m_nType, textValue.Text, textBat.Text, textPin.Text);
             try
             {
-                AddText(richTextBox1, "Sending sensor parameter to server...\r\n");
+                AddText(richTextBox1, "Sending sensor parameter to server... ");
                 WebRequest request = WebRequest.Create(strAddress);
                 request.Method = "PATCH";
                 byte[] byteArray = Encoding.UTF8.GetBytes(strLine);
@@ -1122,9 +1005,9 @@ namespace NG_Monitor
                 response.Close();
                 //return responseFromServer;
                 if (responseFromServer.Contains("true") == true)
-                    AddText(richTextBox1, "Sensor Information was sent successfully\r\n");
+                    AddText(richTextBox1, "Sensor Information was sent successfully ");
                 else
-                    AddText(richTextBox1, "Failed to send Sensor Information\r\n");
+                    AddText(richTextBox1, "Failed to send Sensor Information ");
             }
             catch (Exception ex)
             {
@@ -1134,7 +1017,7 @@ namespace NG_Monitor
         
         private void PrintSticker()
         {            
-            AddText(richTextBox1, "Print...\r\n");
+            AddText(richTextBox1, "Print...");
             new Print(textID.Text, m_sTypeTitle, m_nType, NG_Monitor.Properties.Resources.Aus_rcm/*, barcode qrCode.GetGraphic(1, Color.Black, Color.White, null, 0, 0), Monitor.Properties.Resources.Logo*/);
         }
 
@@ -1153,7 +1036,7 @@ namespace NG_Monitor
             SetText(statusText ,"");
             SetText(textValue, "");
             statusText.BackColor = backgroundColor;
-            m_bInProcess = 0;
+            m_stage = Stage.STAGE0_NONE;
          
 //            m_ver = Versions.None;
             if (gpsTimer != null)
@@ -1203,21 +1086,6 @@ namespace NG_Monitor
 //                    pictureBox1.ImageLocation = sPath;
                     switch (m_nType)
                     {
-                        //case TYPE_PIVOT:
-                        //    pictureBox1.Image = NG_Monitor.Properties.Resources.PVT;
-                        //    comboHardware.SelectedIndex = 1;
-                        //    break;
-                        //case TYPE_WPS:
-                        //case TYPE_IRS:
-                        //    pictureBox1.Image = NG_Monitor.Properties.Resources.WPS;
-                        //    break;
-                        //case TYPE_TENS:
-                        //    pictureBox1.Image = NG_Monitor.Properties.Resources.TENS;
-                        //    comboHardware.SelectedIndex = 1;
-                        //    break;
-                        //case TYPE_SMS:
-                        //    pictureBox1.Image = NG_Monitor.Properties.Resources.SMS;
-                        //    break;
                         case TYPE_SD:
                             pictureBox1.Image = NG_Monitor.Properties.Resources.SD;
                             break;
@@ -1227,19 +1095,10 @@ namespace NG_Monitor
                         case TYPE_FI3:
                             pictureBox1.Image = NG_Monitor.Properties.Resources.FI3;
                             break;
-                        //case TYPE_AT:
-                        //    pictureBox1.Image = NG_Monitor.Properties.Resources.AT1;
-                        //    break;
-                        //case TYPE_WTR_PLS_CNT:
-                        //    pictureBox1.Image = NG_Monitor.Properties.Resources.WTR_CNT;
-                        //    break;
-                        //case TYPE_NEW_PIVOT:
-                        //    pictureBox1.Image = NG_Monitor.Properties.Resources.PVT;
-                        //    break;
                         //default:
+                        //    AddText(richTextBox1, "unknown type");
 
                     }
-                    //pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
                     pictureBox1.Refresh();
                 }
 

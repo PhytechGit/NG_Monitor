@@ -20,3 +20,7 @@ namespace NG_Monitor
         }
     }
 }
+/*
+ * 25/06/2020   change structure of bufferfrom-to unit
+ * /
+ * */

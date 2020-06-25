@@ -53,6 +53,7 @@
             this.comboHardware = new System.Windows.Forms.ComboBox();
             this.label9 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.labelMac = new System.Windows.Forms.Label();
             this.txtOficialVer = new System.Windows.Forms.Label();
             this.txtPinLmt = new System.Windows.Forms.Label();
             this.textValue = new System.Windows.Forms.TextBox();
@@ -75,16 +76,16 @@
             // richTextBox1
             // 
             this.richTextBox1.Font = new System.Drawing.Font("Arial", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(177)));
-            this.richTextBox1.Location = new System.Drawing.Point(265, 245);
+            this.richTextBox1.Location = new System.Drawing.Point(265, 190);
             this.richTextBox1.Name = "richTextBox1";
-            this.richTextBox1.Size = new System.Drawing.Size(365, 208);
+            this.richTextBox1.Size = new System.Drawing.Size(411, 301);
             this.richTextBox1.TabIndex = 72;
             this.richTextBox1.Text = "";
             // 
             // IDGnrtrBtn
             // 
             this.IDGnrtrBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(177)));
-            this.IDGnrtrBtn.Location = new System.Drawing.Point(414, 460);
+            this.IDGnrtrBtn.Location = new System.Drawing.Point(414, 497);
             this.IDGnrtrBtn.Name = "IDGnrtrBtn";
             this.IDGnrtrBtn.Size = new System.Drawing.Size(94, 22);
             this.IDGnrtrBtn.TabIndex = 101;
@@ -122,6 +123,7 @@
             this.label27.Size = new System.Drawing.Size(89, 16);
             this.label27.TabIndex = 101;
             this.label27.Text = "Rom Version:";
+            this.label27.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label29
             // 
@@ -132,6 +134,7 @@
             this.label29.Size = new System.Drawing.Size(103, 16);
             this.label29.TabIndex = 96;
             this.label29.Text = "Battery Voltage:";
+            this.label29.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // textID
             // 
@@ -146,7 +149,7 @@
             // ClrLogBtn
             // 
             this.ClrLogBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(177)));
-            this.ClrLogBtn.Location = new System.Drawing.Point(497, 459);
+            this.ClrLogBtn.Location = new System.Drawing.Point(543, 496);
             this.ClrLogBtn.Name = "ClrLogBtn";
             this.ClrLogBtn.Size = new System.Drawing.Size(133, 23);
             this.ClrLogBtn.TabIndex = 81;
@@ -157,7 +160,7 @@
             // rstBtn
             // 
             this.rstBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(177)));
-            this.rstBtn.Location = new System.Drawing.Point(111, 263);
+            this.rstBtn.Location = new System.Drawing.Point(111, 298);
             this.rstBtn.Name = "rstBtn";
             this.rstBtn.Size = new System.Drawing.Size(94, 25);
             this.rstBtn.TabIndex = 109;
@@ -168,7 +171,7 @@
             // prntBtn
             // 
             this.prntBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(177)));
-            this.prntBtn.Location = new System.Drawing.Point(111, 227);
+            this.prntBtn.Location = new System.Drawing.Point(111, 262);
             this.prntBtn.Name = "prntBtn";
             this.prntBtn.Size = new System.Drawing.Size(94, 25);
             this.prntBtn.TabIndex = 110;
@@ -185,6 +188,7 @@
             this.label3.Size = new System.Drawing.Size(24, 16);
             this.label3.TabIndex = 111;
             this.label3.Text = "ID:";
+            this.label3.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // textPin
             // 
@@ -202,9 +206,10 @@
             this.label5.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(177)));
             this.label5.Location = new System.Drawing.Point(75, 191);
             this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(34, 16);
+            this.label5.Size = new System.Drawing.Size(30, 16);
             this.label5.TabIndex = 114;
-            this.label5.Text = "Pin=";
+            this.label5.Text = "Pin:";
+            this.label5.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // label1
             // 
@@ -294,6 +299,7 @@
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.labelMac);
             this.groupBox2.Controls.Add(this.txtOficialVer);
             this.groupBox2.Controls.Add(this.txtPinLmt);
             this.groupBox2.Controls.Add(this.textValue);
@@ -312,9 +318,18 @@
             this.groupBox2.Controls.Add(this.label27);
             this.groupBox2.Location = new System.Drawing.Point(12, 187);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(238, 294);
+            this.groupBox2.Size = new System.Drawing.Size(238, 332);
             this.groupBox2.TabIndex = 117;
             this.groupBox2.TabStop = false;
+            // 
+            // labelMac
+            // 
+            this.labelMac.AutoSize = true;
+            this.labelMac.Location = new System.Drawing.Point(20, 235);
+            this.labelMac.Name = "labelMac";
+            this.labelMac.Size = new System.Drawing.Size(196, 13);
+            this.labelMac.TabIndex = 126;
+            this.labelMac.Text = "XXXXXXXXXXXXXXXXXXXXXXXXXXX";
             // 
             // txtOficialVer
             // 
@@ -350,11 +365,12 @@
             // 
             this.label8.AutoSize = true;
             this.label8.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(177)));
-            this.label8.Location = new System.Drawing.Point(28, 123);
+            this.label8.Location = new System.Drawing.Point(24, 123);
             this.label8.Name = "label8";
             this.label8.Size = new System.Drawing.Size(85, 16);
             this.label8.TabIndex = 121;
             this.label8.Text = "Measurment:";
+            this.label8.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // statusText
             // 
@@ -377,6 +393,7 @@
             this.label6.Size = new System.Drawing.Size(48, 16);
             this.label6.TabIndex = 117;
             this.label6.Text = "Status:";
+            this.label6.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // checkBoxNotGenerae
             // 
@@ -414,7 +431,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(643, 491);
+            this.ClientSize = new System.Drawing.Size(688, 531);
             this.Controls.Add(this.checkReused);
             this.Controls.Add(this.checkBoxNotGenerae);
             this.Controls.Add(this.pictureBox1);
@@ -475,6 +492,7 @@
         private System.Windows.Forms.CheckBox checkBoxNotGenerae;
         private System.Windows.Forms.Label txtOficialVer;
         private System.Windows.Forms.CheckBox checkReused;
+        private System.Windows.Forms.Label labelMac;
     }
 }
 
