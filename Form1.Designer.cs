@@ -76,7 +76,7 @@
             // richTextBox1
             // 
             this.richTextBox1.Font = new System.Drawing.Font("Arial", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(177)));
-            this.richTextBox1.Location = new System.Drawing.Point(265, 190);
+            this.richTextBox1.Location = new System.Drawing.Point(269, 190);
             this.richTextBox1.Name = "richTextBox1";
             this.richTextBox1.Size = new System.Drawing.Size(411, 301);
             this.richTextBox1.TabIndex = 72;
@@ -398,13 +398,12 @@
             // checkBoxNotGenerae
             // 
             this.checkBoxNotGenerae.AutoSize = true;
-            this.checkBoxNotGenerae.Location = new System.Drawing.Point(223, 227);
+            this.checkBoxNotGenerae.Location = new System.Drawing.Point(12, 164);
             this.checkBoxNotGenerae.Name = "checkBoxNotGenerae";
-            this.checkBoxNotGenerae.Size = new System.Drawing.Size(110, 17);
+            this.checkBoxNotGenerae.Size = new System.Drawing.Size(122, 17);
             this.checkBoxNotGenerae.TabIndex = 124;
-            this.checkBoxNotGenerae.Text = "Dont Generate ID";
+            this.checkBoxNotGenerae.Text = "Make Factory Reset";
             this.checkBoxNotGenerae.UseVisualStyleBackColor = true;
-            this.checkBoxNotGenerae.Visible = false;
             // 
             // pictureBox1
             // 
@@ -419,7 +418,7 @@
             // checkReused
             // 
             this.checkReused.AutoSize = true;
-            this.checkReused.Location = new System.Drawing.Point(19, 168);
+            this.checkReused.Location = new System.Drawing.Point(19, 146);
             this.checkReused.Name = "checkReused";
             this.checkReused.Size = new System.Drawing.Size(143, 17);
             this.checkReused.TabIndex = 125;
@@ -431,7 +430,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(688, 531);
+            this.ClientSize = new System.Drawing.Size(693, 531);
             this.Controls.Add(this.checkReused);
             this.Controls.Add(this.checkBoxNotGenerae);
             this.Controls.Add(this.pictureBox1);

@@ -22,5 +22,6 @@ namespace NG_Monitor
 }
 /*
  * 25/06/2020   change structure of bufferfrom-to unit
- * /
+ * 05/04/2021   send calibration value with ID
+ * 
  * */

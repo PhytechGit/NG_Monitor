@@ -103,16 +103,30 @@ S/N: XXXXXXXX
     //{
     //    string st = sType;
     //    ev.Graphics.DrawString(st, fontxLarge, Brushes.Black, 47, 165, new StringFormat());
-        
+
     //}
     // Print the file.
+
+    string GetDefaultPrinter()
+    {
+        PrinterSettings settings = new PrinterSettings();
+        foreach (string printer in PrinterSettings.InstalledPrinters)
+        {
+            settings.PrinterName = printer;
+            if (settings.IsDefaultPrinter)
+                return printer;
+        }
+        return string.Empty;
+    }
 
     public void Printing()
      {
          try 
          {
             PrintDialog printDialog1 = new PrintDialog();
-            printDialog1.PrinterSettings.PrinterName = "‏‏Godex G530";
+//            printDialog1.PrinterSettings.PrinterName = "‏‏Godex G530";
+            printDialog1.PrinterSettings.PrinterName = GetDefaultPrinter();// "Godex G530";/*printDialog1.PrinterSettings.PrinterName;*///printDialog1.PrinterSettings.P "Citizen CL-S321";//
+
             //DialogResult result = printDialog1.ShowDialog();
             //if (result != DialogResult.OK)
             //    return;

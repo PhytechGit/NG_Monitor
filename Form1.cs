@@ -26,18 +26,22 @@ namespace NG_Monitor
     {
         const int TYPE_NONE = 0;
         const int TYPE_HUB = 68;
-        const int TYPE_SD = 73;
-        const int TYPE_DER = 74;
-        const int TYPE_FI3 = 83;
+        const int TYPE_SD = 99;//temp
+        const int TYPE_DER = 100;//112;
+        const int TYPE_FI3 = 101;
 
-        const int CALICRATION_FI3 = 3950;
+        const int CALICRATION_FI3 = 2475;//2225;// for sensor with old calculation. ON 58.5 diameter
+        const int FI_ADD = 3375;    // for sensor with old calculation
+        const int CALICRATION_SD = 12100; //(=12100-3283) stem of 12.10 mm - intercept    
+        //const int SD_INTERCEPT = 3283;  // permanent for new calc
 
         enum Stage
         {
             STAGE0_NONE,
             STAGE1_TYPE,
             STAGE2_ID,
-            STAGE4_CLBR,
+            STAGE_FCTR_RST,
+            //STAGE4_CLBR,
         }
         static Stage m_stage;
 
@@ -58,7 +62,7 @@ namespace NG_Monitor
         double m_fConst;
         int m_selIndex;
         int m_nCalibVal;
-        private static System.Timers.Timer gpsTimer;
+        //private static System.Timers.Timer gpsTimer;
         private static System.Timers.Timer ackTimer;
         bool m_bDefaultReused;
         private Color backgroundColor;
@@ -85,6 +89,16 @@ namespace NG_Monitor
             public Int32    m_version;
             public UInt64   m_MacAddr;
             public byte     m_rssi;
+        }
+
+        
+        unsafe public struct Stage4
+        {
+            public byte m_Header;
+            public byte m_size;
+            public Int16 m_battery;
+            public Int32 m_version;
+            public UInt32 m_id;
         }
 
         unsafe public struct Stage2
@@ -187,9 +201,9 @@ namespace NG_Monitor
         //get SW latest version from staging server
         private void LoadVersionNum()
         {
-            string uriProdString = @"http://plantbeat.phytech.com/activeadmin/hardware_versions/latest_version?hardware_type=SENSOR&api_token=FrAnazu5rt67";
+            string uriProdString = @"http://plantbeat.phytech.com/activeadmin/hardware_versions/latest_version?hardware_type=SENSOR_NG&api_token=FrAnazu5rt67";
             string uriStagingString = @"https://phytoweb-staging.herokuapp.com/activeadmin/hardware_versions/latest_version?hardware_type=SENSOR&api_token=FrAnazu5rt67";
-            string uriProdHub = @"http://plantbeat.phytech.com/activeadmin/hardware_versions/latest_version?hardware_type=LOGGER&api_token=FrAnazu5rt67";//todo - change to HUB
+            string uriProdHub = @"http://plantbeat.phytech.com/activeadmin/hardware_versions/latest_version?hardware_type=HUB&api_token=FrAnazu5rt67";//todo - change to HUB
             try
             {
                 WebClient client = new WebClient();
@@ -357,7 +371,7 @@ namespace NG_Monitor
                 }
                 else
                 {
-                    string s = DateTime.Now.ToString() + ": " + text + "\r\n";
+                    string s = DateTime.Now.ToString("dd/MM/yy hh: mm:ss.fff") + ": " + text + "\r\n";
                     c.AppendText(s/*text*/);
                     //c.Text += text;
                     c.SelectionStart = c.Text.Length;
@@ -404,6 +418,17 @@ namespace NG_Monitor
             }
         }
 
+        static Stage4 GetMsg4(byte[] data)
+        {
+            unsafe
+            {
+                fixed (byte* map = &data[0])
+                {
+                    return *(Stage4*)map;
+                }
+            }
+
+        }
 
         private bool UnpackBuffer(int l)
         {
@@ -418,9 +443,27 @@ namespace NG_Monitor
             if (m_stage == Stage.STAGE0_NONE)
             {
                 // new connection recognized:
+                if (checkBoxNotGenerae.Checked == true)
+                {
+                    Stage4 msg4 = GetMsg4(m_buffer);
+                    if (msg4.m_Header == 0xBA)
+                    {
+                        AddText(richTextBox1, "Check 4 updates ");
+                        if (msg4.m_id == Convert.ToUInt32(textID.Text))
+                        {
+                            AddText(richTextBox1, "should reset this sensor");
+                            m_stage =  Stage.STAGE_FCTR_RST;
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
                 Stage1 msg1 =  GetMsg1(m_buffer);
                 if ((msg1.m_Header != 0xA1) && (msg1.m_Header != 0xA6) && (msg1.m_Header != 0xBA))
                     return false;
+                ///////////////////////////////
+                /////////////////////////////
 //                AddText(c, string.Format("sizeof Stage1 is: {0}", sizeof(msg1)));
                 AddText(richTextBox1, string.Format("batery: {0}, rssi: {1} Version: ", msg1.m_battery, (int)msg1.m_rssi));
                 AddText(richTextBox1, string.Format("Mac Address: {0}", msg1.m_MacAddr));
@@ -437,10 +480,10 @@ namespace NG_Monitor
                 SetText(labelMac, string.Format("Mac Address: {0}", msg1.m_MacAddr.ToString()));
                 
                 //index += 2;
-                if ((value < 3000))// && (DbgMode != 1))
+                if ((value < 2950))// && (DbgMode != 1))
                 {
                     AddText(richTextBox1, string.Format("Battery too low. Quit process. ({0}) ", value));
-                    //return false;
+                    return false;
                 }
                 m_RomVer = BitConverter.GetBytes(msg1.m_version);
                 ParseVersion(1);
@@ -449,14 +492,14 @@ namespace NG_Monitor
                     if (m_sHubVer != textVersion.Text)
                     {
                         AddText(richTextBox1, "Software version doesn't match required one. Quit process. ");
-                        //return false;
+                        return false;
                     }
                 }
                 else
                     if ((textVersion.Text != m_sSWVer) && (DbgMode != 3))
                     {
                         AddText(richTextBox1, "Software version doesn't match required one. Quit process. ");
-                        //return false;
+                        return false;
                     }
                     p = ((int)msg1.m_rssi - 260) / 2;
                 //(m_buffer[10] - 260) / 2;
@@ -476,6 +519,8 @@ namespace NG_Monitor
                 {
                     m_stage = Stage.STAGE1_TYPE;
                     AddText(richTextBox1, "sending to sensor the Type ");
+                    Thread.Sleep(2500);
+                    AddText(richTextBox1, "after delay ");
                 }
                 //serialPort1.DataReceived -= new SerialDataReceivedEventHandler(serialPort1_DataReceived_1);
                 //nEventCntr--;
@@ -488,13 +533,13 @@ namespace NG_Monitor
                 {
                     AddText(richTextBox1, "Header doesnt fit"+s2.m_Header.ToString());
                     //m_bInProcess = 0;
-                    //return false;
+                    return false;
                 }
                 if (s2.m_typeEcho != m_nType)
                 {
                     AddText(richTextBox1, "type doesnt fit");
                     //m_bInProcess = 0;
-                    //return false;
+                    return false;
                 }
                 value = s2.m_data;//BitConverter.ToInt16(m_buffer, 4);
                 SetText(textValue, value.ToString());
@@ -503,19 +548,26 @@ namespace NG_Monitor
                 if ((value < TypesArray[m_selIndex].m_iMinValue) || (value > TypesArray[m_selIndex].m_iMaxValue))
                 {
                     AddText(richTextBox1, "Measurement is out of expected range. Quit process.  ");
- //                   m_stage = Stage.STAGE0_NONE;
                     return false;
                 }
                 // for FI#=3 - calc calibration and send it before ID
 
-                //remove next 7 lines just for test
+                //calc calibration
                 if (m_nType == TYPE_FI3)
                 {
-                    m_nCalibVal = CALICRATION_FI3 - value;
+                    m_nCalibVal = CALICRATION_FI3 - value + FI_ADD;
                     AddText(richTextBox1, "Calibration Value is:" + m_nCalibVal.ToString() + " ");
-                    m_stage = Stage.STAGE4_CLBR;
                 }
-                else
+                if (m_nType == TYPE_SD)
+                {
+                    value *= 2;
+                    m_nCalibVal = CALICRATION_SD - value;
+                    // TEMPORARY ADD 2335 FOR sd DEFINED AS DEN
+                    //m_nCalibVal += 2335;
+                    AddText(richTextBox1, "SD Calibration Value is:" + m_nCalibVal.ToString() + " ");
+                    //                    m_stage = Stage.STAGE4_CLBR;
+                }
+//                else
                 {
                     m_stage = Stage.STAGE2_ID;
                     AddText(richTextBox1, "sending to sensor the new ID and Type ");
@@ -527,35 +579,40 @@ namespace NG_Monitor
                 CheckACK();
             }
             else
-                if (m_stage == Stage.STAGE4_CLBR)
+                if (m_stage == Stage.STAGE_FCTR_RST)
                 {
-                AddText(richTextBox1, "Got calib from sensor ");
-                    AddText(richTextBox1, Buff2Log(true, length));
-                    if (GetCheckSum(6) != m_buffer[6])
-                        return false;
-                    //removenext 10 linesonly for fi check
-                    value = BitConverter.ToInt16(m_buffer, 2);
-                    if (value != m_nCalibVal)
-                    {
-                        AddText(richTextBox1, "Calibration value is wrong ");
-//                        m_stage = Stage.STAGE0_NONE;
-                        return false;
-                    }
-                    value = BitConverter.ToInt16(m_buffer, 4);
-                    if (value != CALICRATION_FI3)
-                    {
-                        AddText(richTextBox1, "Final value is wrong ");
- //                       m_stage = Stage.STAGE0_NONE;
-                        return false;
-                    }
-                    AddText(richTextBox1, "value after Calibration is:" + value + " ");
-                    m_stage = Stage.STAGE2_ID;
-                    AddText(richTextBox1, "sending to sensor the new ID and Type ");
+                    CheckACK();
                 }
+            /*            else
+                            if (m_stage == Stage.STAGE4_CLBR)
+                            {
+                                AddText(richTextBox1, "Got calib from sensor ");
+                                AddText(richTextBox1, Buff2Log(true, length));
+                                if (GetCheckSum(6) != m_buffer[6])
+                                    return false;
+                                //removenext 10 linesonly for fi check
+                                value = BitConverter.ToInt16(m_buffer, 2);
+                                if (value != m_nCalibVal)
+                                {
+                                    AddText(richTextBox1, "Calibration value is wrong ");
+            //                        m_stage = Stage.STAGE0_NONE;
+                                    return false;
+                                }
+                                value = BitConverter.ToInt16(m_buffer, 4);
+                                if (value != CALICRATION_FI3)
+                                {
+                                    AddText(richTextBox1, "Final value is wrong ");
+             //                       m_stage = Stage.STAGE0_NONE;
+                                    return false;
+                                }
+                                AddText(richTextBox1, "value after Calibration is:" + value + " ");
+                                m_stage = Stage.STAGE2_ID;
+                                AddText(richTextBox1, "sending to sensor the new ID and Type ");
+                            }
+                        */
+            //            SendCommand();
+            //            SetTimer4Ack();
 
-//            SendCommand();
-//            SetTimer4Ack();
-                    
             return true;              
         }
 
@@ -567,7 +624,27 @@ namespace NG_Monitor
             Stage3 st = GetMsg3(m_buffer);
             byte[] m_EchoId = new byte[] { st.m_id1, st.m_id2, st.m_id3, st.m_id4 };
             UInt32 id =  BitConverter.ToUInt32(m_EchoId, 0);
-//            AddText(richTextBox1, string.Format("header: {0} id: {1}", st.m_Header, id));
+            //            AddText(richTextBox1, string.Format("header: {0} id: {1}", st.m_Header, id));
+            if (checkBoxNotGenerae.Checked == true)
+            {
+                if (st.m_Header != 0xBF)
+                {
+                    AddText(richTextBox1, "wrong header");
+                    return false;
+                }
+                if (id == Convert.ToInt32(textID.Text))
+                {
+                    {
+                        //AddText(richTextBox1, Buff2Log(true, 7));
+                        AddText(richTextBox1, "Successfully Reset Id & Type ");
+                        SetText(statusText, "PASS");
+                        SetColor(statusText, Color.Green);
+                        m_stage = Stage.STAGE0_NONE;
+                        return true;
+                    }
+                }
+                return false;
+            }
             if (m_nType != TYPE_HUB)
             {
                 if (st.m_Header != 0xA5)
@@ -635,14 +712,14 @@ namespace NG_Monitor
             }
             else
                  if (m_stage == Stage.STAGE2_ID)
-            {
-                AddText(richTextBox1, "Generate ID from server ");
-                if (GenerateID() == false)
                 {
-                    AddText(richTextBox1, "Unable to generate ID. Quit process ");
-                    m_stage = Stage.STAGE0_NONE;
-                    return ;
-                }
+                    AddText(richTextBox1, "Generate ID from server ");
+                    if (GenerateID() == false)
+                    {
+                        AddText(richTextBox1, "Unable to generate ID. Quit process ");
+                        m_stage = Stage.STAGE0_NONE;
+                        return ;
+                    }
                 if (m_nType == TYPE_HUB)
                 {
                     m_buffer[index++] = 0xA7;
@@ -660,23 +737,36 @@ namespace NG_Monitor
                 else
                 {
                     m_buffer[index++] = 0xA4;
-                    m_buffer[index++] = 8;
+                    m_buffer[index++] = 10;
                     Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt32(textID.Text)), 0, m_buffer, index, 4);
                     index += 4;
                     m_buffer[index++] = m_nType;
+                    Buffer.BlockCopy(BitConverter.GetBytes(m_nCalibVal), 0, m_buffer, index, 2);
+                    index += 2;
                     //checksum- add in gate
                     m_buffer[index++] = 0;
                     bufSize = index;
                 }
             }
-            else
-                 if (m_stage == Stage.STAGE4_CLBR)// calibrate the FI
+            else 
+                if (m_stage == Stage.STAGE_FCTR_RST)
             {
-                Buffer.BlockCopy(BitConverter.GetBytes(m_nCalibVal), 0, m_buffer, 1, 2);
-                Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt16(textBat.Text)), 0, m_buffer, 3, 2);
-                m_buffer[5] = m_nType;
-                m_buffer[6] = GetCheckSum(6);
+                m_buffer[index++] = 0xBE;
+                m_buffer[index++] = 7;
+                Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt32(textID.Text)), 0, m_buffer, index, 4);
+                index += 4;
+                //checksum- add in gate
+                m_buffer[index++] = 0;
+                bufSize = index;
             }
+            //else
+            //     if (m_stage == Stage.STAGE4_CLBR)// calibrate the FI
+            //{
+            //    Buffer.BlockCopy(BitConverter.GetBytes(m_nCalibVal), 0, m_buffer, 1, 2);
+            //    Buffer.BlockCopy(BitConverter.GetBytes(Convert.ToInt16(textBat.Text)), 0, m_buffer, 3, 2);
+            //    m_buffer[5] = m_nType;
+            //    m_buffer[6] = GetCheckSum(6);
+            //}
             try
             {
                 //Thread.Sleep(1000);
@@ -978,13 +1068,15 @@ namespace NG_Monitor
             * "rssi_value":3.0
             * "hardware_type":"Sensor"
             * */
-            string s = "";
-            if (checkReused.Checked == true)
-                s = "REUSED SENSOR";
-            string strAddress = String.Format(@"http://plantbeat.phytech.com/activeadmin/sensors_allocations/{0}.json?user_id=1091&api_token=FrAnazu5rt67", m_nAllocID);
+            string s = "Sensor";
+            if (m_nType == TYPE_HUB)
+                s = "HUB";
+                //if (checkReused.Checked == true)
+                //    s = "REUSED SENSOR";
+                string strAddress = String.Format(@"http://plantbeat.phytech.com/activeadmin/sensors_allocations/{0}.json?user_id=1091&api_token=FrAnazu5rt67", m_nAllocID);
             String strLine;// = "authtoken=4b8873e7a46d5cf77a027bda4feb3fe4&scope=crmapi&wfTrigger=true&xmlData=<Products><row no=\"1\">";
-            strLine = String.Format("&factory={0}&worker_identifier={1}&software_version={2}&hardware_version={3}", m_sFactory, s, textVersion.Text, m_sHW);
-            strLine += String.Format("&sensor_type={0}&measuring_value={1}&battery_value={2}&rssi_value={3}&hardware_type=Sensor", m_nType, textValue.Text, textBat.Text, textPin.Text);
+            strLine = String.Format("&factory={0}&worker_identifier={1}&software_version={2}&hardware_version={3}", m_sFactory, labelMac.Text, textVersion.Text, m_sHW);
+            strLine += String.Format("&sensor_type={0}&measuring_value={1}&battery_value={2}&rssi_value={3}&hardware_type={4}", m_nType, textValue.Text, textBat.Text, textPin.Text, s);
             try
             {
                 AddText(richTextBox1, "Sending sensor parameter to server... ");
@@ -1035,15 +1127,17 @@ namespace NG_Monitor
             SetText(textPin, "");
             SetText(statusText ,"");
             SetText(textValue, "");
-            statusText.BackColor = backgroundColor;
+            SetText(labelMac, "");
+            SetColor(statusText, backgroundColor);
+            //statusText.BackColor = backgroundColor;
             m_stage = Stage.STAGE0_NONE;
          
 //            m_ver = Versions.None;
-            if (gpsTimer != null)
-            {
-                gpsTimer.Enabled = false;
-                gpsTimer.Dispose();
-            }
+            //if (gpsTimer != null)
+            //{
+            //    gpsTimer.Enabled = false;
+            //    gpsTimer.Dispose();
+            //}
         }
 
          private void rstBtn_Click(object sender, EventArgs e)
